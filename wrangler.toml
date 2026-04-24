@@ -1,2 +1,5 @@
 name = "food-display"
 pages_build_output_dir = "."
+
+# 环境变量请在 Cloudflare Pages 设置中添加：
+# CLOUDFLARE_API_TOKEN = 你的 Cloudflare API Token
