@@ -1,4 +1,4 @@
-﻿var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
+var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
 var formName='',formPrice='',formDesc='';
 
 document.addEventListener('DOMContentLoaded',async function(){
