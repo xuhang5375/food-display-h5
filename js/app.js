@@ -454,3 +454,4 @@ async function saveProduct(){
     loadPage('admin');
   },1500);
 }
+
