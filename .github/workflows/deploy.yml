@@ -18,13 +18,13 @@ jobs:
 
       - name: Inject secrets into data.js
         run: |
-          sed -i "s|\[YOUR_SUPABASE_ANON_KEY]|${${ secrets.SUPABASE_ANON_KEY }}|g" js/data.js
-          sed -i "s|\[YOUR_COS_SECRET_ID]|${${ secrets.COS_SECRET_ID }}|g" js/data.js
-          sed -i "s|\[YOUR_COS_SECRET_KEY]|${${ secrets.COS_SECRET_KEY }}|g" js/data.js
+          sed -i "s|\[YOUR_SUPABASE_ANON_KEY]|${{ secrets.SUPABASE_ANON_KEY }}|g" js/data.js
+          sed -i "s|\[YOUR_COS_SECRET_ID]|${{ secrets.COS_SECRET_ID }}|g" js/data.js
+          sed -i "s|\[YOUR_COS_SECRET_KEY]|${{ secrets.COS_SECRET_KEY }}|g" js/data.js
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${${ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${${ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy . --project-name=food-display --branch=master
