@@ -3,6 +3,9 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 
+/js/*
+  Cache-Control: no-store
+
 https://infsqrfqksvqzlapvott.supabase.co/*
   Access-Control-Allow-Origin: *
   Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
