@@ -1,3 +1,4 @@
+// cache-bust: 20260427-1420
 // js/data.js - Supabase DB + COS Upload v3
 // Upload: Tencent COS XML API | Read: Tencent COS CDN | DB: Supabase REST
 
