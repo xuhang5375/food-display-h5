@@ -3,41 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>妞嬬喐娼楃仦鏇犮仛</title>
-  <link rel="stylesheet" href="css/style.css?v=20260427d">
+  <title>食材展示</title>
+  <link rel="stylesheet" href="css/style.css?v=20260428d">
 </head>
 <body>
 
-  <!-- 妞ゅ爼鍎寸€佃壈鍩?-->
+  <!-- 顶部导航 -->
   <header class="header">
-    <h1>棣冦偐 妞嬬喐娼楃仦鏇犮仛</h1>
-    <button class="header-btn" onclick="sharePage()">棣冩憶 閸掑棔闊?/button>
+    <h1>🥩 食材展示</h1>
+    <button class="header-btn" onclick="sharePage()">📤 分享</button>
   </header>
 
-  <!-- 閹剚璇炴潻鏂挎礀閹稿鎸抽敍鍫ｎ嚊閹懘銆夐弰鍓с仛閿?->
-  <button id="floatingBackBtn" class="floating-back-btn" onclick="goBackHome()" style="display:none">閳?妫ｆ牠銆?/button>
-
-  <!-- 娑撹顔愰崳?-->
+  <!-- 主容器 -->
   <main class="container" id="mainContainer">
-    <div class="loading" id="loading">閸旂姾娴囨稉?..</div>
+    <div class="loading" id="loading">加载中...</div>
   </main>
 
-  <!-- 鎼存洟鍎寸€佃壈鍩?-->
+  <!-- 底部导航 -->
   <nav class="bottom-nav">
     <div class="nav-item active" data-page="home" onclick="switchTab('home')">
-      <span class="nav-icon">棣冨綌</span>
-      <span>妫ｆ牠銆?/span>
+      <span class="nav-icon">🏠</span>
+      <span>首页</span>
     </div>
     <div class="nav-item" data-page="admin" onclick="switchTab('admin')">
-      <span class="nav-icon">閳挎瑱绗?/span>
-      <span>缁狅紕鎮?/span>
+      <span class="nav-icon">⚙️</span>
+      <span>管理</span>
     </div>
   </nav>
 
-  <!-- Toast 閹绘劗銇?-->
+  <!-- Toast 提示 -->
   <div class="toast" id="toast"></div>
 
-  <script src="js/data2.js?v=20260428d"></script>
+  <script src="js/data.js"></script>
   <script src="js/app.js?v=20260428d"></script>
 </body>
 </html>
