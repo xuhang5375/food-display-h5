@@ -1,0 +1,66 @@
+name: Deploy CF Simple
+
+on:
+  push:
+    paths:
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          COS_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_KEY: ${{ secrets.COS_SECRET_KEY }}
+        run: |
+          echo "=== Deploying to Cloudflare Pages ==="
+          
+          # Replace placeholders in JS files
+          find . -name "*.js" ! -path "./node_modules/*" -exec sed -i "s|@YOUR_SUPABASE_ANON_KEY@|$SUPABASE_KEY|g" {} \;
+          find . -name "*.js" ! -path "./node_modules/*" -exec sed -i "s|@YOUR_COS_SECRET_ID@|$COS_ID|g" {} \;
+          find . -name "*.js" ! -path "./node_modules/*" -exec sed -i "s|@YOUR_COS_SECRET_KEY@|$COS_KEY|g" {} \;
+          
+          echo "Files prepared"
+          
+          # Create deployment via CF API
+          RESPONSE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/food-display/deployments" \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"branch":"master","skipGitIntegration":true}')
+          
+          echo "Create response: $RESPONSE"
+          
+          if echo "$RESPONSE" | grep -q '"success":true'; then
+            DEPID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['id'])")
+            echo "Deployment ID: $DEPID"
+            
+            # Upload files
+            for f in $(find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*" -printf "%P\n"); do
+              if [ -f "$f" ]; then
+                MIME=$(file --mime-type -b "$f" 2>/dev/null || echo "application/octet-stream")
+                CONTENT=$(base64 -w 0 "$f")
+                curl -s -X POST \
+                  "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/food-display/deployments/$DEPID/upload" \
+                  -H "Authorization: Bearer $CF_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"manifest\":{\"$f\":{\"content\":\"$CONTENT\",\"content_type\":\"$MIME\",\"encoding\":\"base64\"}}}" \
+                  > /dev/null
+                echo "Uploaded: $f"
+              fi
+            done
+            
+            echo "=== Done! https://food-display.pages.dev ==="
+          else
+            echo "Deployment creation failed"
+            exit 1
+          fi
