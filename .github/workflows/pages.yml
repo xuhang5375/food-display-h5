@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Remove BOM from all files
+        run: |
+          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.txt" -o -name "*.json" -o -name "*.md" \) | while IFS= read -r file; do
+            if [ "$(od -An -tx1 -N3 "$file" | xargs)" = "ef bb bf" ]; then
+              dd if="$file" bs=1 skip=3 status=none | dd of="$file" bs=1 conv=notrunc 2>/dev/null
+            fi
+          done
+
+      - name: Inject secrets into data.js
+        run: |
+          if grep -q '\[YOUR_SUPABASE_ANON_KEY\]' js/data.js; then
+            sed -i 's/\[YOUR_SUPABASE_ANON_KEY\]/${{ secrets.SUPABASE_ANON_KEY }}/g' js/data.js
+            sed -i 's/\[YOUR_COS_SECRET_ID\]/${{ secrets.COS_SECRET_ID }}/g' js/data.js
+            sed -i 's/\[YOUR_COS_SECRET_KEY\]/${{ secrets.COS_SECRET_KEY }}/g' js/data.js
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
