@@ -60,7 +60,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments" \
             -H "Authorization: Bearer ${CF_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"branch\":\"master\",\"skipGitIntegration\":true}")
+            -d "{\"branch\":\"master\",\"skipGitIntegration\":true,\"manifest\":{}}")
           echo "Create response: $RESP"
           DEP_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['id'])" 2>/dev/null)
           echo "Deployment ID: $DEP_ID"
