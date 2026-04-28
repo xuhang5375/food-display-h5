@@ -1,0 +1,17 @@
+name: Verify CF Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "CF_ACCOUNT: $CLOUDFLARE_ACCOUNT_ID"
+          echo "CF_TOKEN prefix: ${CLOUDFLARE_API_TOKEN:0:10}"
+          echo "---"
+          echo "List CF Pages projects:"
+          curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json"
