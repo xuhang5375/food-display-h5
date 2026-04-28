@@ -1,0 +1,77 @@
+name: Deploy CF REST
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject secrets
+        run: |
+          sed -i 's/\[@YOUR_SUPABASE_ANON_KEY@]/${{ secrets.SUPABASE_ANON_KEY }}/g' js/data.js
+          sed -i 's/\[@YOUR_COS_SECRET_ID@]/${{ secrets.COS_SECRET_ID }}/g' js/data.js
+          sed -i 's/\[@YOUR_COS_SECRET_KEY@]/${{ secrets.COS_SECRET_KEY }}/g' js/data.js
+          sed -i 's/\[@YOUR_SUPABASE_ANON_KEY@]/${{ secrets.SUPABASE_ANON_KEY }}/g' js/data2.js
+          sed -i 's/\[@YOUR_COS_SECRET_ID@]/${{ secrets.COS_SECRET_ID }}/g' js/data2.js
+          sed -i 's/\[@YOUR_COS_SECRET_KEY@]/${{ secrets.COS_SECRET_KEY }}/g' js/data2.js
+          echo "Secrets injected"
+
+      - name: Deploy via CF Pages REST API
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+import json, os, urllib.request, base64
+
+account_id = os.environ["CF_ACCOUNT_ID"]
+api_token = os.environ["CF_API_TOKEN"]
+project = "food-display"
+headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
+
+data = json.dumps({"branch": "master", "skipGitIntegration": True}).encode()
+req = urllib.request.Request(
+    f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/{project}/deployments",
+    data=data, headers=headers, method="POST"
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    result = json.loads(resp.read())
+    if not result.get("success"):
+        print("Create failed:", result.get("errors")); exit(1)
+    dep_id = result["result"]["id"]
+    print(f"Deployment: {dep_id}")
+
+manifest = {}
+for root, dirs, files in os.walk("."):
+    dirs[:] = [d for d in dirs if d not in [".git", ".github", "node_modules"]]
+    for name in files:
+        filepath = os.path.join(root, name)[2:]
+        with open(filepath, "rb") as f:
+            cb = base64.b64encode(f.read()).decode()
+        ext = name.split(".")[-1] if "." in name else ""
+        ct = {"js":"text/javascript","css":"text/css","html":"text/html","json":"application/json"}.get(ext, "application/octet-stream")
+        manifest[filepath] = {"content": cb, "content_type": ct, "encoding": "base64"}
+
+print(f"Manifest: {len(manifest)} files")
+
+upload_data = json.dumps({"manifest": manifest}).encode()
+req2 = urllib.request.Request(
+    f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/{project}/deployments/{dep_id}/upload",
+    data=upload_data, headers=headers, method="POST"
+)
+with urllib.request.urlopen(req2, timeout=120) as resp:
+    result2 = json.loads(resp.read())
+    print(f"Upload: {result2.get('success')}")
+
+print(f"Done! https://food-display.pages.dev")
+PYEOF
