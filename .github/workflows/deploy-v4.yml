@@ -20,11 +20,9 @@ jobs:
 
       - name: Clean BOM and ZWNBSP from source files
         run: |
-          # Remove UTF-8 BOM (EF BB BF) and ZWNBSP (U+FEFF) from all files
-          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" -o -name "*.json" -o -name "*.txt" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i '1s/^\xEF\xBB\xBF//;s/\xEF\xBB\xBF//g' {} \;
-          # Also strip U+FEFF from files (anywhere, not just start)
+          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
           find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i 's/\xC2\xBF//g' {} \;
-          echo "Cleaned BOM/ZWNBSP from source files"
+          echo "BOM/ZWNBSP cleaned"
 
       - name: Inject secrets into JS files
         env:
@@ -39,11 +37,14 @@ jobs:
             echo "Patched: $f"
           done
 
-      - name: Verify clean
+      - name: Install wrangler
+        run: npm install -g wrangler
+
+      - name: Verify clean bytes
         run: |
           for f in $(find js -name "*.js"); do
-            CHARS=$(od -An -tx1 -N 20 "$f" | tr -d ' \n')
-            echo "$f: first 20 bytes = $CHARS"
+            echo "=== $f ==="
+            head -c 5 "$f" | od -An -tx1
           done
 
       - name: Deploy with Wrangler
@@ -51,4 +52,4 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler pages deploy . --project-name=food-display --commit-message="Deploy via GitHub Actions" 2>&1
+          wrangler pages deploy . --project-name=food-display --commit-message="Deploy $(date +%Y%m%d%H%M%S)" 2>&1
