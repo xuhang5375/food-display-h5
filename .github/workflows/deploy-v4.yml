@@ -3,9 +3,9 @@ name: Deploy CF v4
 on:
   push:
     paths:
-      - 'index.html'
-      - 'css/'
-      - 'js/'
+      - "index.html"
+      - "css/"
+      - "js/"
   workflow_dispatch:
 
 jobs:
@@ -17,15 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Strip all problematic chars from all files
+      - name: Clean files
         run: |
-          # Remove UTF-8 BOM and ZWNBSP from every file
-          find . -type f \
-            ! -path "./.git/*" \
-            ! -path "./node_modules/*" \
-            ! -path "./.github/*" \
-            -exec perl -i -pe 's/\xEF\xBB\xBF//g; s/\xC2\xBF//g' {} \;
-          echo "All files cleaned"
+          find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*" -exec perl -i -pe "s/\xEF\xBB\xBF//g; s/\xC2\xBF//g" {} \;
 
       - name: Inject secrets
         env:
@@ -38,54 +32,14 @@ jobs:
             sed -i "s|@YOUR_COS_SECRET_ID@|${COS_ID}|g" "$f"
             sed -i "s|@YOUR_COS_SECRET_KEY@|${COS_KEY}|g" "$f"
           done
-          echo "Secrets injected"
 
-      - name: Verify clean
-        run: |
-          for f in $(find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.github/*"); do
-            b=$(head -c 8 "$f" | od -An -tx1 | tr -d ' \n')
-            echo "$f: $b"
-          done
+      - name: Install wrangler
+        run: npm install -g wrangler@3
 
-      - name: Deploy with Wrangler v3 (fallback curl)
+      - name: Deploy
         env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "Installing wrangler@3..."
-          npm install -g wrangler@3
-          wrangler pages project list 2>&1 | head -5
-          echo "---"
-          wrangler pages deploy . --project-name=food-display --commit-message="Deploy $(date +%Y%m%d%H%M%S)" 2>&1 || {
-            echo "Wrangler failed, trying CF REST API..."
-            # Fallback: direct curl to CF Pages API
-            DEP_RESPONSE=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments" \
-              -H "Authorization: Bearer ${CF_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"branch\":\"master\",\"skipGitIntegration\":true}")
-            echo "Deployment response: $DEP_RESPONSE"
-            DEP_ID=$(echo "$DEP_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('id','ERROR'))" 2>/dev/null)
-            echo "Deployment ID: $DEP_ID"
-            if [ "$DEP_ID" != "ERROR" ] && [ -n "$DEP_ID" ]; then
-              MANIFEST=$(find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*" -printf '{"%p":{"content":"%b","contentType":"application/octet-stream"}}\n' | python3 -c "
-import sys,json,base64
-m = {}
-for line in sys.stdin:
-    line=line.strip()
-    if not line: continue
-    try:
-        j=json.loads(line)
-        for path,info in j.items():
-            with open(path,'rb') as f:
-                m[path]={'content':base64.b64encode(f.read()).decode(),'contentType':'application/octet-stream'}
-    except: pass
-print(json.dumps(m))
-" 2>/dev/null)
-              curl -s -X POST \
-                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments/${DEP_ID}/upload" \
-                -H "Authorization: Bearer ${CF_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"manifest\":$MANIFEST}"
-            fi
-          }
+          wrangler pages project list
+          wrangler pages deploy . --project-name=food-display --commit-message="Deploy from Actions"
