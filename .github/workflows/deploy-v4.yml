@@ -1,0 +1,54 @@
+name: Deploy CF v4
+
+on:
+  push:
+    paths:
+      - 'index.html'
+      - 'css/'
+      - 'js/'
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clean BOM and ZWNBSP from source files
+        run: |
+          # Remove UTF-8 BOM (EF BB BF) and ZWNBSP (U+FEFF) from all files
+          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" -o -name "*.json" -o -name "*.txt" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i '1s/^\xEF\xBB\xBF//;s/\xEF\xBB\xBF//g' {} \;
+          # Also strip U+FEFF from files (anywhere, not just start)
+          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i 's/\xC2\xBF//g' {} \;
+          echo "Cleaned BOM/ZWNBSP from source files"
+
+      - name: Inject secrets into JS files
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          COS_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_KEY: ${{ secrets.COS_SECRET_KEY }}
+        run: |
+          for f in $(find js -name "*.js"); do
+            sed -i "s|@YOUR_SUPABASE_ANON_KEY@|${SUPABASE_KEY}|g" "$f"
+            sed -i "s|@YOUR_COS_SECRET_ID@|${COS_ID}|g" "$f"
+            sed -i "s|@YOUR_COS_SECRET_KEY@|${COS_KEY}|g" "$f"
+            echo "Patched: $f"
+          done
+
+      - name: Verify clean
+        run: |
+          for f in $(find js -name "*.js"); do
+            CHARS=$(od -An -tx1 -N 20 "$f" | tr -d ' \n')
+            echo "$f: first 20 bytes = $CHARS"
+          done
+
+      - name: Deploy with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler pages deploy . --project-name=food-display --commit-message="Deploy via GitHub Actions" 2>&1
