@@ -7,7 +7,6 @@ on:
       - 'css/'
       - 'js/'
   workflow_dispatch:
-  pull_request:
 
 jobs:
   deploy:
@@ -18,13 +17,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clean BOM and ZWNBSP from source files
+      - name: Strip all problematic chars from all files
         run: |
-          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
-          find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" -exec sed -i 's/\xC2\xBF//g' {} \;
-          echo "BOM/ZWNBSP cleaned"
+          # Remove UTF-8 BOM and ZWNBSP from every file
+          find . -type f \
+            ! -path "./.git/*" \
+            ! -path "./node_modules/*" \
+            ! -path "./.github/*" \
+            -exec perl -i -pe 's/\xEF\xBB\xBF//g; s/\xC2\xBF//g' {} \;
+          echo "All files cleaned"
 
-      - name: Inject secrets into JS files
+      - name: Inject secrets
         env:
           SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           COS_ID: ${{ secrets.COS_SECRET_ID }}
@@ -34,22 +37,55 @@ jobs:
             sed -i "s|@YOUR_SUPABASE_ANON_KEY@|${SUPABASE_KEY}|g" "$f"
             sed -i "s|@YOUR_COS_SECRET_ID@|${COS_ID}|g" "$f"
             sed -i "s|@YOUR_COS_SECRET_KEY@|${COS_KEY}|g" "$f"
-            echo "Patched: $f"
           done
+          echo "Secrets injected"
 
-      - name: Install wrangler
-        run: npm install -g wrangler
-
-      - name: Verify clean bytes
+      - name: Verify clean
         run: |
-          for f in $(find js -name "*.js"); do
-            echo "=== $f ==="
-            head -c 5 "$f" | od -An -tx1
+          for f in $(find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.github/*"); do
+            b=$(head -c 8 "$f" | od -An -tx1 | tr -d ' \n')
+            echo "$f: $b"
           done
 
-      - name: Deploy with Wrangler
+      - name: Deploy with Wrangler v3 (fallback curl)
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler pages deploy . --project-name=food-display --commit-message="Deploy $(date +%Y%m%d%H%M%S)" 2>&1
+          echo "Installing wrangler@3..."
+          npm install -g wrangler@3
+          wrangler pages project list 2>&1 | head -5
+          echo "---"
+          wrangler pages deploy . --project-name=food-display --commit-message="Deploy $(date +%Y%m%d%H%M%S)" 2>&1 || {
+            echo "Wrangler failed, trying CF REST API..."
+            # Fallback: direct curl to CF Pages API
+            DEP_RESPONSE=$(curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments" \
+              -H "Authorization: Bearer ${CF_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"branch\":\"master\",\"skipGitIntegration\":true}")
+            echo "Deployment response: $DEP_RESPONSE"
+            DEP_ID=$(echo "$DEP_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('id','ERROR'))" 2>/dev/null)
+            echo "Deployment ID: $DEP_ID"
+            if [ "$DEP_ID" != "ERROR" ] && [ -n "$DEP_ID" ]; then
+              MANIFEST=$(find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*" -printf '{"%p":{"content":"%b","contentType":"application/octet-stream"}}\n' | python3 -c "
+import sys,json,base64
+m = {}
+for line in sys.stdin:
+    line=line.strip()
+    if not line: continue
+    try:
+        j=json.loads(line)
+        for path,info in j.items():
+            with open(path,'rb') as f:
+                m[path]={'content':base64.b64encode(f.read()).decode(),'contentType':'application/octet-stream'}
+    except: pass
+print(json.dumps(m))
+" 2>/dev/null)
+              curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments/${DEP_ID}/upload" \
+                -H "Authorization: Bearer ${CF_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"manifest\":$MANIFEST}"
+            fi
+          }
