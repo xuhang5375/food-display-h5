@@ -16,9 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clean BOM
+      - name: Remove all BOM types
         run: |
-          find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*" -exec perl -i -pe "s/\xEF\xBB\xBF//g" {} \;
+          python3 -c "
+          import os, sys
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in ['.git','node_modules','.github']]
+              for fn in files:
+                  path = os.path.join(root, fn)
+                  with open(path, 'rb') as f:
+                      data = f.read()
+                  # Remove UTF-8 BOM, UTF-16 LE, UTF-16 BE
+                  if data.startswith(b'\xef\xbb\xbf'):
+                      data = data[3:]
+                  elif data.startswith(b'\xff\xfe'):
+                      data = data[2:]
+                  elif data.startswith(b'\xfe\xff'):
+                      data = data[2:]
+                  with open(path, 'wb') as f:
+                      f.write(data)
+          print('Done')
+          "
 
       - name: Inject secrets
         env:
@@ -50,7 +68,6 @@ jobs:
           echo "Uploading files..."
           for file in $(find . -type f ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.github/*"); do
             CONTENT=$(base64 -w 0 "$file")
-            NAME=$(basename "$file")
             echo "  Uploading $file..."
             UPLOAD=$(curl -s -X POST \
               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments/${DEP_ID}/upload" \
