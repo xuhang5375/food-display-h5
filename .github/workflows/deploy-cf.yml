@@ -1,4 +1,4 @@
-name: Deploy CF REST
+﻿name: Deploy CF REST v2
 
 on:
   push:
