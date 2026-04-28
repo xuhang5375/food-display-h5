@@ -1,0 +1,43 @@
+name: Deploy CF v3
+
+on:
+  push:
+    paths:
+      - 'index.html'
+      - 'css/'
+      - 'js/'
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Inject secrets into JS files
+        run: |
+          echo "Injecting secrets into JS files..."
+          for f in $(find js -name "*.js"); do
+            sed -i "s|@YOUR_SUPABASE_ANON_KEY@|${{ secrets.SUPABASE_ANON_KEY }}|g" "$f"
+            sed -i "s|@YOUR_COS_SECRET_ID@|${{ secrets.COS_SECRET_ID }}|g" "$f"
+            sed -i "s|@YOUR_COS_SECRET_KEY@|${{ secrets.COS_SECRET_KEY }}|g" "$f"
+            echo "Patched: $f"
+          done
+
+      - name: Deploy with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Deploying via wrangler..."
+          wrangler pages project list 2>&1 || true
+          wrangler pages deploy . --project-name=food-display --yes 2>&1
