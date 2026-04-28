@@ -1,0 +1,24 @@
+name: Mini Diagnose
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check env + CF API
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "ACCOUNT len=${#CF_ACCOUNT} TOKEN len=${#CF_TOKEN}"
+          if [ "${#CF_ACCOUNT}" -eq 0 ] || [ "${#CF_TOKEN}" -eq 0 ]; then
+            echo "EMPTY SECRET DETECTED"
+            exit 1
+          fi
+          echo "Testing POST..."
+          set -o pipefail
+          RESP=$(curl -s -w "\nHTTP:%{http_code}" -X POST             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/food-display/deployments"             -H "Authorization: Bearer ${CF_TOKEN}"             -H "Content-Type: application/json"             -d '{"branch":"master","skipGitIntegration":true,"manifest":{}}')
+          echo "$RESP"
