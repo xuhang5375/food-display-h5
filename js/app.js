@@ -427,9 +427,9 @@ async function saveProduct(){
     var cosPath='video-'+Date.now()+'.'+ext;
     console.log('[\u89c6\u9891] \u5f00\u59cb\u4e0a\u4f20:', cosPath, (file.size/1048576).toFixed(1)+'MB');
     var up=await uploadToCOS(cosPath,file,file.type||'video/mp4');
-    if(up&&up.url){
-      product.video=up.url;
-      console.log('[\u89c6\u9891] \u4e0a\u4f20\u6210\u529f:', up.url);
+    if(up){
+      product.video=typeof up === 'string' ? up : up.url;
+      console.log('[瑙嗛] 涓婁紶鎴愬姛:', product.video);
     } else {
       console.error('[\u89c6\u9891] \u4e0a\u4f20\u5931\u8d25');
     }
