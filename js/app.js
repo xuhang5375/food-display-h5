@@ -1,4 +1,4 @@
-var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
+﻿var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
 var formName='',formPrice='',formDesc='';
 
 document.addEventListener('DOMContentLoaded',async function(){
@@ -117,7 +117,7 @@ async function showDetail(id){
     h+='<div class="detail-video-section">';
     h+='<div class="detail-video-wrapper" id="detailVideoWrapper">';
     console.log('[\u89c6\u9891] \u5546\u54c1ID='+id+' video\u5b57\u6bb5\u503c:', p.video);
-    h+='<video id="detailVideo" src="'+p.video+'" playsinline preload="metadata" style="width:100%;max-height:70vw;display:block;background:#000;object-fit:contain" onerror="console.error(\'[\u89c6\u9891] \u52a0\u8f7d\u5931\u8d25:\',this.error);document.getElementById(\'detailPlayOverlay\').innerHTML=\'<span style=&quot;font-size:12px&quot;>\u89c6\u9891\u52a0\u8f7d\u5931\u8d25</span>\'"></video>';
+    h+='<video id="detailVideo" src="'+p.video+'" playsinline preload="metadata" currentTime="0" style="width:100%;max-height:70vw;display:block;background:#000;object-fit:contain" onerror="console.error(\'[\u89c6\u9891] \u52a0\u8f7d\u5931\u8d25:\',this.error);document.getElementById(\'detailPlayOverlay\').innerHTML=\'<span style=&quot;font-size:12px&quot;>\u89c6\u9891\u52a0\u8f7d\u5931\u8d25</span>\'"></video>';
     h+='<div class="detail-video-play-btn" id="detailPlayOverlay" onclick="toggleDetailVideo()"><span class="play-icon">▶</span></div>';
     h+='<button class="video-replay-btn" id="detailReplayBtn" onclick="replayVideo()" style="display:none">🔄 \u91cd\u65b0\u64ad\u653e</button>';
     h+='<button class="video-fullscreen-btn" onclick="toggleVideoFullscreen()">⛶ \u5168\u5c4f</button>';
@@ -180,7 +180,7 @@ function initGallerySwipe(){
 }
 
 function toggleDetailVideo(){
-  var v=document.getElementById('detailVideo');
+  var v=document.getElementById('detailVideo');if(v.currentTime>5)v.currentTime=0;
   var o=document.getElementById('detailPlayOverlay');
   var r=document.getElementById('detailReplayBtn');
   if(!v)return;
@@ -454,4 +454,6 @@ async function saveProduct(){
     loadPage('admin');
   },1500);
 }
+
+
 
