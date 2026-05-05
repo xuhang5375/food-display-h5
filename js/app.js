@@ -1,4 +1,4 @@
-﻿var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
+var currentPage='home',isAuthorized=localStorage.getItem('food_display_admin')==='1',adminPassword='920615',selectedTag='',editProductId=null,selectedImages=[],selectedVideo=null,pendingVideoThumb=null,activeCategory='',isLoading=false;
 var formName='',formPrice='',formDesc='';
 
 document.addEventListener('DOMContentLoaded',async function(){
@@ -180,22 +180,47 @@ function initGallerySwipe(){
 }
 
 function toggleDetailVideo(){
-  var v=document.getElementById('detailVideo');if(v.currentTime>5)v.currentTime=0;
-  var o=document.getElementById('detailPlayOverlay');
-  var r=document.getElementById('detailReplayBtn');
+  var v=document.getElementById('detailVideo'),o=document.getElementById('detailPlayOverlay'),r=document.getElementById('detailReplayBtn');
   if(!v)return;
-  if(v.paused||v.ended){v.play();if(o)o.style.display='none';if(r)r.style.display='none';}
-  else{v.pause();if(o)o.style.display='flex';}
+  if(v.paused||v.ended){
+    var tryPlay=function(){
+      if(v.readyState>=2){
+        v.play().catch(function(e){console.log('play失败:'+e)});
+        if(o)o.style.display='none';
+        if(r)r.style.display='none';
+      } else {
+        v.addEventListener('canplay',function onCan(){
+          v.removeEventListener('canplay',onCan);
+          if(v.paused||v.ended)v.play();
+          if(o)o.style.display='none';
+          if(r)r.style.display='none';
+        },{once:true});
+        v.load();
+      }
+    };
+    if(v.currentTime>5)v.currentTime=0;
+    tryPlay();
+  } else {
+    v.pause();if(o)o.style.display='flex';}
 }
 
 function replayVideo(){
-  var v=document.getElementById('detailVideo');
-  var o=document.getElementById('detailPlayOverlay');
-  var r=document.getElementById('detailReplayBtn');
+  var v=document.getElementById('detailVideo'),o=document.getElementById('detailPlayOverlay'),r=document.getElementById('detailReplayBtn');
   if(!v)return;
-  v.currentTime=0;v.play();
-  if(o)o.style.display='none';
-  if(r)r.style.display='none';
+  v.currentTime=0;
+  if(v.readyState>=2){
+    v.play();
+    if(o)o.style.display='none';
+    if(r)r.style.display='none';
+  } else {
+    v.addEventListener('canplay',function onCan(){
+      v.removeEventListener('canplay',onCan);
+      v.play();
+      if(o)o.style.display='none';
+      if(r)r.style.display='none';
+    },{once:true});
+    v.load();
+  }
 }
 
 function toggleVideoFullscreen(){
