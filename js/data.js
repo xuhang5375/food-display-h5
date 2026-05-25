@@ -1,4 +1,4 @@
-// cache-bust: 20260428-1758
+// cache-bust: 20260525-1053
 // js/data.js [20260427150000] - Supabase DB + COS Upload v3
 // Upload: Tencent COS XML API | Read: Tencent COS CDN | DB: Supabase REST
 
@@ -13,6 +13,7 @@ var COS_BUCKET = '799195375-1306702381';
 var COS_REGION = 'ap-guangzhou';
 var COS_HOST = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
 var COS_BASE_URL = 'https://' + COS_HOST;
+var COS_CDN_URL = 'https://' + COS_BUCKET + '.file.myqcloud.com';
 var COS_FOLDER = 'product-media';
 
 // --- COS 签名工具函数（浏览器端 Web Crypto API）---
@@ -142,7 +143,7 @@ function getStoragePublicUrl(path) {
   if (path.indexOf('http') === 0) return path;
   if (path.indexOf('cos.') > -1) return path;
   var key = path.indexOf('product-media/') === 0 ? path : ('product-media/' + path);
-  return COS_BASE_URL + '/' + key;
+  return COS_CDN_URL + '/' + key;
 }
 
 // 兼容旧接口名
@@ -244,3 +245,4 @@ window.AppData = {
   uploadToStorage: uploadToCOS,
   getStoragePublicUrl: getStoragePublicUrl
 };
+
