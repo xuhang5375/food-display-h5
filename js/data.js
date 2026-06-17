@@ -1,22 +1,22 @@
-// cache-bust: 20260525-1053
+// cache-bust: 20260427-1420
 // js/data.js [20260427150000] - Supabase DB + COS Upload v3
 // Upload: Tencent COS XML API | Read: Tencent COS CDN | DB: Supabase REST
+ | CDN-FORCE-20260427-1659
 
 var SUPABASE_URL = 'https://infsqrfqksvqzlapvott.supabase.co';
-var SUPABASE_ANON_KEY = '[YOUR_SUPABASE_ANON_KEY]';
+var SUPABASE_ANON_KEY = 'sb_publishable_2z92LEUAiZf6smg9aiufFg_p16OStvD';
 
-// 腾讯云 COS 配置
-// ⚠️ 请替换为你自己的腾讯云密钥，或通过环境变量注入
+// 鑵捐浜?COS 閰嶇疆
+// 鈿狅笍 璇锋浛鎹负浣犺嚜宸辩殑鑵捐浜戝瘑閽ワ紝鎴栭€氳繃鐜鍙橀噺娉ㄥ叆
 var COS_SECRET_ID = '[YOUR_COS_SECRET_ID]';
 var COS_SECRET_KEY = '[YOUR_COS_SECRET_KEY]';
 var COS_BUCKET = '799195375-1306702381';
 var COS_REGION = 'ap-guangzhou';
 var COS_HOST = COS_BUCKET + '.cos.' + COS_REGION + '.myqcloud.com';
 var COS_BASE_URL = 'https://' + COS_HOST;
-var COS_CDN_URL = 'https://' + COS_BUCKET + '.file.myqcloud.com';
 var COS_FOLDER = 'product-media';
 
-// --- COS 签名工具函数（浏览器端 Web Crypto API）---
+// --- COS 绛惧悕宸ュ叿鍑芥暟锛堟祻瑙堝櫒绔?Web Crypto API锛?--
 
 function _arrayBufferToHex(buf) {
   return Array.from(new Uint8Array(buf)).map(function(b) {
@@ -40,15 +40,14 @@ async function _sha1(data) {
   return _arrayBufferToHex(hash);
 }
 
-// 生成 COS XML API v1 Authorization
+// 鐢熸垚 COS XML API v1 Authorization
 async function _cosAuth(httpMethod, objectKey) {
   var now = Math.floor(Date.now() / 1000);
   var keyTime = now + ';' + (now + 3600);
-  var signKey = await _hmacSha1(COS_SECRET_KEY, keyTime);
   var formatStr = httpMethod.toLowerCase() + '\n/' + objectKey + '\n\nhost=' + COS_HOST.toLowerCase() + '\n';
   var sha1Format = await _sha1(formatStr);
   var stringToSign = 'sha1\n' + keyTime + '\n' + sha1Format + '\n';
-  var signature = await _hmacSha1(signKey, stringToSign);
+  var signature = await _hmacSha1(COS_SECRET_KEY, stringToSign);
   return 'q-sign-algorithm=sha1&q-ak=' + COS_SECRET_ID +
     '&q-sign-time=' + keyTime + '&q-key-time=' + keyTime +
     '&q-header-list=host&q-url-param-list=&q-signature=' + signature;
@@ -69,7 +68,7 @@ async function supabaseFetch(path, method, body) {
   };
   if (body) opts.body = JSON.stringify(body);
   
-  // 添加超时控制
+  // 娣诲姞瓒呮椂鎺у埗
   var controller = new AbortController();
   var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
   opts.signal = controller.signal;
@@ -88,23 +87,22 @@ async function supabaseFetch(path, method, body) {
   }
 }
 
-// --- COS 上传 ---
+// --- COS 涓婁紶 ---
 
 async function uploadToCOS(path, file, contentType) {
   var objectKey = COS_FOLDER + '/' + path;
   var url = COS_BASE_URL + '/' + objectKey;
   var isVideo = (contentType || '').indexOf('video') > -1;
-  // 视频用 5 分钟超时，图片用 60 秒
-  var timeoutMs = isVideo ? 300000 : 60000;
+  // 瑙嗛鐢?5 鍒嗛挓瓒呮椂锛屽浘鐗囩敤 60 绉?  var timeoutMs = isVideo ? 300000 : 60000;
   var sizeMB = file.size ? (file.size / 1048576).toFixed(1) : '?';
 
-  console.log('[COS] 开始上传', path, sizeMB + 'MB', contentType, '超时:' + (timeoutMs/1000) + 's');
+  console.log('[COS] 寮€濮嬩笂浼?, path, sizeMB + 'MB', contentType, '瓒呮椂:' + (timeoutMs/1000) + 's');
 
   var putAuth = await _cosAuth('PUT', objectKey);
 
   var controller = new AbortController();
   var timeoutId = setTimeout(function() {
-    console.error('[COS] 上传超时！文件大小:', sizeMB + 'MB');
+    console.error('[COS] 涓婁紶瓒呮椂锛佹枃浠跺ぇ灏?', sizeMB + 'MB');
     controller.abort();
   }, timeoutMs);
 
@@ -121,44 +119,42 @@ async function uploadToCOS(path, file, contentType) {
     clearTimeout(timeoutId);
     if (!r.ok) {
       var err = await r.text().catch(function() { return ''; });
-      console.error('[COS] 上传失败 HTTP', r.status, err);
+      console.error('[COS] 涓婁紶澶辫触 HTTP', r.status, err);
       return null;
     }
-    console.log('[COS] 上传成功:', url);
+    console.log('[COS] 涓婁紶鎴愬姛:', url);
     return url;
   } catch (e) {
     clearTimeout(timeoutId);
     if (e.name === 'AbortError') {
-      console.error('[COS] 上传被中止（超时）文件大小:', sizeMB + 'MB');
+      console.error('[COS] 涓婁紶琚腑姝紙瓒呮椂锛夋枃浠跺ぇ灏?', sizeMB + 'MB');
     } else {
-      console.error('[COS] 上传异常:', e.name, e.message);
+      console.error('[COS] 涓婁紶寮傚父:', e.name, e.message);
     }
     return null;
   }
 }
 
-// 获取公开访问 URL（兼容旧数据）
-function getStoragePublicUrl(path) {
+// 鑾峰彇鍏紑璁块棶 URL锛堝吋瀹规棫鏁版嵁锛?function getStoragePublicUrl(path) {
   if (!path) return '';
   if (path.indexOf('http') === 0) return path;
   if (path.indexOf('cos.') > -1) return path;
   var key = path.indexOf('product-media/') === 0 ? path : ('product-media/' + path);
-  return COS_CDN_URL + '/' + key;
+  return COS_BASE_URL + '/' + key;
 }
 
-// 兼容旧接口名
+// 鍏煎鏃ф帴鍙ｅ悕
 async function uploadToStorage(path, file, contentType) {
   return uploadToCOS(path, file, contentType);
 }
 
-// --- 商品 CRUD ---
+// --- 鍟嗗搧 CRUD ---
 
 async function getProducts() {
   var rows = await supabaseFetch('/products?select=id,name,price,unit,tag,description,cover_image,video,images,created_at&order=created_at.asc', 'GET');
   return rows.map(function(r) {
     var imgs = r.images || [];
-    // 转换每张图：COS 路径 → 完整 URL，base64/http 直通
-    var images = imgs.map(function(img) {
+    // 杞崲姣忓紶鍥撅細COS 璺緞 鈫?瀹屾暣 URL锛宐ase64/http 鐩撮€?    var images = imgs.map(function(img) {
       if (!img) return '';
       if (img.indexOf('http') === 0 || img.indexOf('data:') === 0) return img;
       return getStoragePublicUrl(img);
@@ -245,4 +241,3 @@ window.AppData = {
   uploadToStorage: uploadToCOS,
   getStoragePublicUrl: getStoragePublicUrl
 };
-
